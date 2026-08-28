@@ -1,0 +1,23 @@
+[project]
+name = "social-media-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "celery[redis]>=5.6.3",
+    "django>=6.1",
+    "djangorestframework>=3.18.0",
+    "drf-spectacular>=0.30.0",
+    "psycopg[binary]>=3.3.4",
+    "python-dotenv>=1.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "black[d]>=26.5.1",
+    "django-stubs>=6.1.0",
+    "flake8>=7.3.0",
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+]
