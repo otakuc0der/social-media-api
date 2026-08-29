@@ -1,44 +1,21 @@
-from typing import Any
-
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import authenticate
 from django.db import transaction
-from django.utils.translation import gettext_lazy as _
-
 from rest_framework import serializers
 
-from user.models import Profile
+from user.models import Follow, Profile
 from user.utils.validators import validate_unique_email
 
 
 class CustomAuthTokenSerializer(serializers.Serializer):
-    email = serializers.EmailField(
-        label=_("Email"),
-        write_only=True,
-    )
+    email = serializers.EmailField()
     password = serializers.CharField(
-        label=_("Password"),
-        style={"input_type": "password"},
-        trim_whitespace=False,
         write_only=True,
-    )
-    token = serializers.CharField(
-        label=_("Token"),
-        read_only=True,
+        trim_whitespace=False,
     )
 
-    def validate(
-        self,
-        attrs: dict[str, Any],
-    ) -> dict[str, Any]:
+    def validate(self, attrs):
         email = attrs.get("email")
         password = attrs.get("password")
-
-        if not email or not password:
-            msg = _('Must include "email" and "password".')
-            raise serializers.ValidationError(
-                msg,
-                code="authorization",
-            )
 
         user = authenticate(
             request=self.context.get("request"),
@@ -47,21 +24,22 @@ class CustomAuthTokenSerializer(serializers.Serializer):
         )
 
         if not user:
-            msg = _("Unable to log in with provided credentials.")
             raise serializers.ValidationError(
-                msg,
-                code="authorization",
+                "Unable to authenticate with provided credentials."
             )
 
         attrs["user"] = user
-
         return attrs
 
 
-class ProfileSerializer(serializers.ModelSerializer):
+class ProfileCreateSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         source="user.email",
-        allow_blank=False,
+    )
+    password = serializers.CharField(
+        source="user.password",
+        write_only=True,
+        trim_whitespace=False,
     )
     first_name = serializers.CharField(
         source="user.first_name",
@@ -73,103 +51,121 @@ class ProfileSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True,
     )
+
+    class Meta:
+        model = Profile
+        fields = [
+            "id",
+            "email",
+            "password",
+            "first_name",
+            "last_name",
+            "nickname",
+            "bio",
+            "avatar",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_email(self, value: str) -> str:
+        return validate_unique_email(
+            email=value,
+            error_factory=serializers.ValidationError,
+        )
+
+    @transaction.atomic
+    def create(self, validated_data):
+        user_data = validated_data.pop("user")
+
+        password = user_data.pop("password")
+
+        user = Profile._meta.get_field("user").remote_field.model.objects.create_user(
+            password=password,
+            **user_data,
+        )
+
+        return Profile.objects.create(
+            user=user,
+            **validated_data,
+        )
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(
+        source="user.email",
+    )
     password = serializers.CharField(
         source="user.password",
-        style={"input_type": "password"},
-        trim_whitespace=False,
         write_only=True,
         required=False,
-        allow_blank=False,
+        trim_whitespace=False,
     )
-    avatar = serializers.ImageField(
+    first_name = serializers.CharField(
+        source="user.first_name",
         required=False,
-        allow_empty_file=False,
-        allow_null=True,
+        allow_blank=True,
+    )
+    last_name = serializers.CharField(
+        source="user.last_name",
+        required=False,
+        allow_blank=True,
     )
 
     class Meta:
         model = Profile
         fields = [
             "id",
-            "nickname",
-            "first_name",
-            "last_name",
-            "bio",
-            "avatar",
             "email",
             "password",
+            "first_name",
+            "last_name",
+            "nickname",
+            "bio",
+            "avatar",
         ]
         read_only_fields = ["id"]
 
     def validate_email(self, value: str) -> str:
         current_user_id = None
 
-        if self.instance:
+        if self.instance is not None:
             current_user_id = self.instance.user_id
 
         return validate_unique_email(
             email=value,
-            error_to_raise=serializers.ValidationError,
+            error_factory=serializers.ValidationError,
             current_user_id=current_user_id,
         )
 
-    def update(
-        self,
-        instance: Profile,
-        validated_data: dict[str, Any],
-    ) -> Profile:
-        with transaction.atomic():
-            user_data = validated_data.pop("user", {})
-            user = instance.user
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop(
+            "user",
+            {},
+        )
 
-            password = user_data.pop("password", None)
+        user = instance.user
 
-            for field, value in user_data.items():
-                setattr(user, field, value)
+        password = user_data.pop(
+            "password",
+            None,
+        )
 
-            if password:
-                user.set_password(password)
-
-            if user_data or password:
-                user.save()
-
-            for field, value in validated_data.items():
-                setattr(instance, field, value)
-
-            instance.save()
-
-        return instance
-
-
-class ProfileCreateSerializer(ProfileSerializer):
-    password = serializers.CharField(
-        source="user.password",
-        style={"input_type": "password"},
-        trim_whitespace=False,
-        write_only=True,
-        required=True,
-        allow_blank=False,
-    )
-
-    def create(
-        self,
-        validated_data: dict[str, Any],
-    ) -> Profile:
-        user_data = validated_data.pop("user")
-        password = user_data.pop("password")
-
-        with transaction.atomic():
-            user = get_user_model().objects.create_user(
-                password=password,
-                **user_data,
+        for attribute, value in user_data.items():
+            setattr(
+                user,
+                attribute,
+                value,
             )
 
-            profile = Profile.objects.create(
-                user=user,
-                **validated_data,
-            )
+        if password:
+            user.set_password(password)
 
-        return profile
+        user.save()
+
+        return super().update(
+            instance,
+            validated_data,
+        )
 
 
 class ProfileListSerializer(serializers.ModelSerializer):
@@ -202,4 +198,72 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
             "bio",
             "avatar",
         ]
-        read_only_fields = fields
+
+
+class FollowSerializer(serializers.ModelSerializer):
+    follower = serializers.CharField(
+        source="follower.profile.nickname",
+        read_only=True,
+    )
+    following = serializers.CharField(
+        source="following.profile.nickname",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Follow
+        fields = [
+            "id",
+            "follower",
+            "following",
+        ]
+
+
+class UnfollowSerializer(serializers.Serializer):
+    pass
+
+
+class FollowingProfileSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(
+        source="following.profile.id",
+        read_only=True,
+    )
+    nickname = serializers.CharField(
+        source="following.profile.nickname",
+        read_only=True,
+    )
+    avatar = serializers.ImageField(
+        source="following.profile.avatar",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Follow
+        fields = [
+            "id",
+            "nickname",
+            "avatar",
+        ]
+
+
+class FollowerProfileSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(
+        source="follower.profile.id",
+        read_only=True,
+    )
+    nickname = serializers.CharField(
+        source="follower.profile.nickname",
+        read_only=True,
+    )
+    avatar = serializers.ImageField(
+        source="follower.profile.avatar",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Follow
+        fields = [
+            "id",
+            "nickname",
+            "avatar",
+        ]
