@@ -1,12 +1,16 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import UniqueConstraint
 from django.utils.translation import gettext as _
 
 from social_media_api.utils.files import generate_image_file_path
 from user.managers import UserManager
+from user.utils.validators import validate_follow_creation
 
 
 class User(AbstractUser):
@@ -58,3 +62,54 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return self.nickname
+
+
+class Follow(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    follower = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="following_relations",
+    )
+    following = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="follower_relations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            UniqueConstraint(
+                fields=["follower", "following"],
+                name="unique_follower_following",
+            )
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+
+        validate_follow_creation(
+            follower_id=self.follower_id,
+            following_id=self.following_id,
+            error_factory=ValidationError,
+        )
+
+    def save(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return (
+            f"{self.follower.profile.nickname} "
+            f"follows {self.following.profile.nickname}"
+        )

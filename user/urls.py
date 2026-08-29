@@ -6,14 +6,14 @@ from user.views import (
     CreateUserView,
     LogoutView,
     ManageUserView,
-    ProfilesReadOnlyViewSet,
+    ProfilesViewSet,
 )
 
 app_name = "user"
 
 
 router = DefaultRouter()
-router.register(prefix="profiles", viewset=ProfilesReadOnlyViewSet, basename="profile")
+router.register(prefix="profiles", viewset=ProfilesViewSet, basename="profile")
 
 urlpatterns = [
     path("register/", CreateUserView.as_view(), name="create"),
