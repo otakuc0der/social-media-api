@@ -6,43 +6,8 @@ from django.db import models
 from django.db.models import UniqueConstraint
 from django.core.exceptions import ValidationError
 
-from social.utils.files import generate_image_file_path
 from social.utils.validators import validate_follower_following
-
-
-def profile_image_file_path(
-    profile: "Profile",
-    filename: str,
-) -> str:
-    return generate_image_file_path(
-        str(profile.id),
-        filename,
-        "uploads/profiles",
-    )
-
-
-class Profile(models.Model):
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="profile",
-    )
-    nickname = models.CharField(unique=True, max_length=100)
-    bio = models.TextField(blank=True)
-    avatar = models.ImageField(null=True, blank=True, upload_to=profile_image_file_path)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["nickname"]
-
-    def __str__(self) -> str:
-        return self.nickname
+from social_media_api.utils.files import generate_image_file_path
 
 
 class Follow(models.Model):
