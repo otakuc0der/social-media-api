@@ -1,6 +1,7 @@
 from django.db.models import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
@@ -10,9 +11,32 @@ from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
-from social.filters import PostFilter, CommentFilter
+from social.filters import CommentFilter, PostFilter
 from social.models import Comment, Hashtag, Like, Post
 from social.permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
+from social.schema import (
+    COMMENT_CREATE_SCHEMA,
+    COMMENT_DELETE_SCHEMA,
+    COMMENT_LIST_SCHEMA,
+    COMMENT_PARTIAL_UPDATE_SCHEMA,
+    COMMENT_RETRIEVE_SCHEMA,
+    COMMENT_UPDATE_SCHEMA,
+    HASHTAG_CREATE_SCHEMA,
+    HASHTAG_DELETE_SCHEMA,
+    HASHTAG_LIST_SCHEMA,
+    HASHTAG_PARTIAL_UPDATE_SCHEMA,
+    HASHTAG_RETRIEVE_SCHEMA,
+    HASHTAG_UPDATE_SCHEMA,
+    LIKED_POSTS_SCHEMA,
+    LIKE_POST_SCHEMA,
+    POST_CREATE_SCHEMA,
+    POST_DELETE_SCHEMA,
+    POST_LIST_SCHEMA,
+    POST_PARTIAL_UPDATE_SCHEMA,
+    POST_RETRIEVE_SCHEMA,
+    POST_UPDATE_SCHEMA,
+    UNLIKE_POST_SCHEMA,
+)
 from social.serializers import (
     CommentDetailSerializer,
     CommentListSerializer,
@@ -28,14 +52,31 @@ from social.utils.validators import (
     validate_like_creation,
     validate_like_removal,
 )
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 
+@extend_schema_view(
+    list=HASHTAG_LIST_SCHEMA,
+    retrieve=HASHTAG_RETRIEVE_SCHEMA,
+    create=HASHTAG_CREATE_SCHEMA,
+    update=HASHTAG_UPDATE_SCHEMA,
+    partial_update=HASHTAG_PARTIAL_UPDATE_SCHEMA,
+    destroy=HASHTAG_DELETE_SCHEMA,
+)
 class HashtagViewSet(viewsets.ModelViewSet):
     queryset = Hashtag.objects.all()
     serializer_class = HashtagSerializer
     permission_classes = [IsAdminOrReadOnly]
 
 
+@extend_schema_view(
+    list=POST_LIST_SCHEMA,
+    create=POST_CREATE_SCHEMA,
+    retrieve=POST_RETRIEVE_SCHEMA,
+    update=POST_UPDATE_SCHEMA,
+    partial_update=POST_PARTIAL_UPDATE_SCHEMA,
+    destroy=POST_DELETE_SCHEMA,
+)
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -43,13 +84,18 @@ class PostViewSet(viewsets.ModelViewSet):
         IsAuthenticated,
         IsAuthorOrReadOnly,
     ]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
     filterset_class = PostFilter
 
     def get_queryset(self) -> QuerySet[Post]:
-        queryset = (
-            Post.objects
-            .select_related("author__profile")
-            .prefetch_related("hashtags")
+        queryset = Post.objects.select_related(
+            "author__profile",
+        ).prefetch_related(
+            "hashtags",
         )
 
         return get_available_posts_for_user(
@@ -89,6 +135,7 @@ class PostViewSet(viewsets.ModelViewSet):
             author=self.request.user,
         )
 
+    @LIKE_POST_SCHEMA
     @action(
         detail=True,
         methods=["post"],
@@ -119,11 +166,12 @@ class PostViewSet(viewsets.ModelViewSet):
             {
                 "message": (
                     f"{current_user.profile.nickname} " f"liked post #{post.pk}."
-                )
+                ),
             },
             status=HTTP_200_OK,
         )
 
+    @UNLIKE_POST_SCHEMA
     @action(
         detail=True,
         methods=["post"],
@@ -154,6 +202,7 @@ class PostViewSet(viewsets.ModelViewSet):
             status=HTTP_204_NO_CONTENT,
         )
 
+    @LIKED_POSTS_SCHEMA
     @action(
         detail=False,
         methods=["get"],
@@ -168,14 +217,19 @@ class PostViewSet(viewsets.ModelViewSet):
             likes__user=request.user,
         )
 
-        page = self.paginate_queryset(liked_posts)
+        page = self.paginate_queryset(
+            liked_posts,
+        )
 
         if page is not None:
             serializer = self.get_serializer(
                 page,
                 many=True,
             )
-            return self.get_paginated_response(serializer.data)
+
+            return self.get_paginated_response(
+                serializer.data,
+            )
 
         serializer = self.get_serializer(
             liked_posts,
@@ -188,6 +242,14 @@ class PostViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema_view(
+    list=COMMENT_LIST_SCHEMA,
+    create=COMMENT_CREATE_SCHEMA,
+    retrieve=COMMENT_RETRIEVE_SCHEMA,
+    update=COMMENT_UPDATE_SCHEMA,
+    partial_update=COMMENT_PARTIAL_UPDATE_SCHEMA,
+    destroy=COMMENT_DELETE_SCHEMA,
+)
 class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [
         IsAuthenticated,
@@ -206,11 +268,20 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> QuerySet[Comment]:
         available_posts = get_available_posts_for_user(
-            self.request.user, Post.objects.all()
+            self.request.user,
+            Post.objects.all(),
         )
-        post = get_object_or_404(available_posts, pk=self.kwargs["post_pk"])
-        return Comment.objects.select_related("author__profile", "post").filter(
-            post=post
+
+        post = get_object_or_404(
+            available_posts,
+            pk=self.kwargs["post_pk"],
+        )
+
+        return Comment.objects.select_related(
+            "author__profile",
+            "post",
+        ).filter(
+            post=post,
         )
 
     def perform_create(

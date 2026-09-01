@@ -13,6 +13,12 @@ class HashtagSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        allow_empty_file=False,
+    )
+
     class Meta:
         model = Post
         fields = [
