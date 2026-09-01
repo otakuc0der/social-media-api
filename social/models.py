@@ -1,62 +1,9 @@
 import uuid
-from typing import Any
 
 from django.conf import settings
 from django.db import models
-from django.db.models import UniqueConstraint
-from django.core.exceptions import ValidationError
 
-from social.utils.validators import validate_follower_following
 from social_media_api.utils.files import generate_image_file_path
-
-
-class Follow(models.Model):
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
-    follower = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="following_relations",
-    )
-    following = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="follower_relations",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        constraints = [
-            UniqueConstraint(
-                fields=["follower", "following"], name="unique_follower_following"
-            )
-        ]
-
-    def clean(self) -> None:
-        super().clean()
-        validate_follower_following(
-            self.follower,
-            self.following,
-            ValidationError,
-        )
-
-    def save(
-        self,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        return (
-            f"{self.follower.profile.nickname} "
-            f"follows {self.following.profile.nickname}"
-        )
 
 
 class Hashtag(models.Model):
@@ -65,7 +12,10 @@ class Hashtag(models.Model):
         default=uuid.uuid4,
         editable=False,
     )
-    name = models.CharField(unique=True, max_length=255)
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+    )
 
     class Meta:
         ordering = ["name"]
@@ -79,7 +29,7 @@ def post_image_file_path(
     filename: str,
 ) -> str:
     return generate_image_file_path(
-        str(post.id),
+        str(post.pk),
         filename,
         "uploads/posts",
     )
@@ -96,17 +46,35 @@ class Post(models.Model):
         editable=False,
     )
     author = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="posts"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="posts",
     )
     content = models.TextField()
-    image = models.ImageField(null=True, blank=True, upload_to=post_image_file_path)
-    status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PUBLISHED
+    image = models.ImageField(
+        upload_to=post_image_file_path,
+        null=True,
+        blank=True,
     )
-    scheduled_at = models.DateTimeField(null=True, blank=True)
-    published_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PUBLISHED,
+    )
+    scheduled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    published_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
     hashtags = models.ManyToManyField(
         Hashtag,
         related_name="posts",
@@ -117,7 +85,7 @@ class Post(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Post {self.id}, created at {self.created_at}"
+        return f"Post {self.pk} by {self.author}"
 
 
 class Like(models.Model):
