@@ -109,6 +109,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True,
     )
+    avatar = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        allow_empty_file=False,
+    )
 
     class Meta:
         model = Profile
