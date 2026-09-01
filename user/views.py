@@ -39,12 +39,25 @@ class CreateUserView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
 
-class ManageUserView(generics.RetrieveUpdateAPIView):
+class ManageUserView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self) -> Profile:
         return self.request.user.profile
+
+    def destroy(
+        self,
+        request: Request,
+        *args,
+        **kwargs,
+    ) -> Response:
+        user = request.user
+        user.delete()
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT,
+        )
 
 
 class LogoutView(APIView):
@@ -167,9 +180,26 @@ class ProfilesViewSet(viewsets.ReadOnlyModelViewSet):
     ) -> Response:
         current_profile = self.get_object()
 
-        all_followings = current_profile.user.following_relations.select_related(
-            "following__profile",
+        all_followings = (
+            current_profile
+            .user
+            .following_relations
+            .select_related(
+                "following__profile",
+            )
         )
+
+        page = self.paginate_queryset(all_followings)
+
+        if page is not None:
+            serializer = self.get_serializer(
+                page,
+                many=True,
+            )
+
+            return self.get_paginated_response(
+                serializer.data,
+            )
 
         serializer = self.get_serializer(
             all_followings,
@@ -194,9 +224,26 @@ class ProfilesViewSet(viewsets.ReadOnlyModelViewSet):
     ) -> Response:
         current_profile = self.get_object()
 
-        all_followers = current_profile.user.follower_relations.select_related(
-            "follower__profile",
+        all_followers = (
+            current_profile
+            .user
+            .follower_relations
+            .select_related(
+                "follower__profile",
+            )
         )
+
+        page = self.paginate_queryset(all_followers)
+
+        if page is not None:
+            serializer = self.get_serializer(
+                page,
+                many=True,
+            )
+
+            return self.get_paginated_response(
+                serializer.data,
+            )
 
         serializer = self.get_serializer(
             all_followers,

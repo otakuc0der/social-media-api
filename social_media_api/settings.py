@@ -40,11 +40,10 @@ MIDDLEWARE = [
 
 
 if DEBUG:
-    INSTALLED_APPS += ["debug_toolbar",]
-    MIDDLEWARE.insert(
-        1,
-        "debug_toolbar.middleware.DebugToolbarMiddleware"
-    )
+    INSTALLED_APPS += [
+        "debug_toolbar",
+    ]
+    MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = [
         "127.0.0.1",
     ]
@@ -116,5 +115,5 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 5
+    "PAGE_SIZE": 5,
 }
