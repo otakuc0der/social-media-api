@@ -1,22 +1,49 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from uuid import UUID
 
 
-ValidationErrorType = Callable[
+ValidationErrorFactory = Callable[
     [dict[str, list[str]]],
     Exception,
 ]
 
 
-def validate_follower_following(
-    follower: Any,
-    following: Any,
-    error_to_raise: ValidationErrorType,
+def validate_like_creation(
+    user_id: int,
+    post_id: UUID,
+    error_factory: ValidationErrorFactory,
 ) -> None:
-    if follower == following:
-        raise error_to_raise(
+    from social.models import Like
+
+    if Like.objects.filter(
+        user_id=user_id,
+        post_id=post_id,
+    ).exists():
+        raise error_factory(
             {
-                "follower": [
-                    "You can't follow yourself."
-                ]
+                "like": [
+                    "You have already liked this post."
+                ],
+            }
+        )
+
+
+def validate_like_removal(
+    user_id: int,
+    post_id: UUID,
+    error_factory: ValidationErrorFactory,
+) -> None:
+    from social.models import Like
+
+    if not Like.objects.filter(
+        user_id=user_id,
+        post_id=post_id,
+    ).exists():
+        raise error_factory(
+            {
+                "like": [
+                    "You cannot remove a like from a post "
+                    "you have not liked."
+                ],
             }
         )

@@ -95,22 +95,33 @@ class Like(models.Model):
         editable=False,
     )
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="likes"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="likes",
     )
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="likes")
-    created_at = models.DateTimeField(auto_now_add=True)
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            UniqueConstraint(
+            models.UniqueConstraint(
                 fields=["user", "post"],
                 name="unique_user_post_like",
-            )
+            ),
         ]
 
     def __str__(self) -> str:
-        return f"{self.user.profile.nickname} likes {self.post}"
+        return (
+            f"{self.user.profile.nickname} "
+            f"likes post {self.post_id}"
+        )
 
 
 class Comment(models.Model):
@@ -120,15 +131,28 @@ class Comment(models.Model):
         editable=False,
     )
     author = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="comments",
     )
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="comments")
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
     content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.author.profile.nickname} comments {self.post}"
+        return (
+            f"{self.author.profile.nickname} "
+            f"commented on post {self.post_id}"
+        )
