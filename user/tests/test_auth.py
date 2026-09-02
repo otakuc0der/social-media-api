@@ -3,14 +3,21 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
+from user.models import Profile
 from user.tests.base import BaseUserAPITestCase
 
 
 class CreateUserViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
-        self.url = reverse("user:create")
+        super().setUp()
 
-    def test_register_creates_user_and_profile(self) -> None:
+        self.url = reverse(
+            "user:create",
+        )
+
+    def test_register_creates_user_and_profile(
+        self,
+    ) -> None:
         payload = {
             "email": "new@example.com",
             "password": "NewPassword123!",
@@ -39,13 +46,16 @@ class CreateUserViewTests(BaseUserAPITestCase):
             user.profile.nickname,
             "new_user",
         )
+
         self.assertTrue(
             user.check_password(
                 payload["password"],
             )
         )
 
-    def test_register_hashes_password(self) -> None:
+    def test_register_hashes_password(
+        self,
+    ) -> None:
         payload = {
             "email": "new@example.com",
             "password": "NewPassword123!",
@@ -71,13 +81,16 @@ class CreateUserViewTests(BaseUserAPITestCase):
             user.password,
             payload["password"],
         )
+
         self.assertTrue(
             user.check_password(
                 payload["password"],
             )
         )
 
-    def test_register_rejects_duplicate_email(self) -> None:
+    def test_register_rejects_duplicate_email(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
             {
@@ -93,7 +106,9 @@ class CreateUserViewTests(BaseUserAPITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    def test_register_rejects_duplicate_nickname(self) -> None:
+    def test_register_rejects_duplicate_nickname(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
             {
@@ -112,9 +127,15 @@ class CreateUserViewTests(BaseUserAPITestCase):
 
 class CreateTokenViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
-        self.url = reverse("user:login")
+        super().setUp()
 
-    def test_login_returns_token(self) -> None:
+        self.url = reverse(
+            "user:login",
+        )
+
+    def test_login_returns_token(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
             {
@@ -128,6 +149,7 @@ class CreateTokenViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertIn(
             "token",
             response.data,
@@ -140,7 +162,9 @@ class CreateTokenViewTests(BaseUserAPITestCase):
             ).exists()
         )
 
-    def test_login_rejects_wrong_password(self) -> None:
+    def test_login_rejects_wrong_password(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
             {
@@ -155,7 +179,9 @@ class CreateTokenViewTests(BaseUserAPITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    def test_login_rejects_unknown_email(self) -> None:
+    def test_login_rejects_unknown_email(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
             {
@@ -173,15 +199,21 @@ class CreateTokenViewTests(BaseUserAPITestCase):
 
 class LogoutViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
-        self.url = reverse("user:logout")
+        super().setUp()
 
-    def test_logout_deletes_token(self) -> None:
+        self.url = reverse(
+            "user:logout",
+        )
+
+    def test_logout_deletes_token(
+        self,
+    ) -> None:
         token = Token.objects.create(
             user=self.user,
         )
 
         self.client.credentials(
-            HTTP_AUTHORIZATION=f"Token {token.key}",
+            HTTP_AUTHORIZATION=(f"Token {token.key}"),
         )
 
         response = self.client.post(
@@ -199,7 +231,9 @@ class LogoutViewTests(BaseUserAPITestCase):
             ).exists()
         )
 
-    def test_logout_requires_authentication(self) -> None:
+    def test_logout_requires_authentication(
+        self,
+    ) -> None:
         response = self.client.post(
             self.url,
         )
@@ -212,9 +246,15 @@ class LogoutViewTests(BaseUserAPITestCase):
 
 class ManageUserViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
-        self.url = reverse("user:manage")
+        super().setUp()
 
-    def test_retrieve_own_profile(self) -> None:
+        self.url = reverse(
+            "user:manage",
+        )
+
+    def test_retrieve_own_profile(
+        self,
+    ) -> None:
         self.authenticate()
 
         response = self.client.get(
@@ -225,12 +265,15 @@ class ManageUserViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
             response.data["nickname"],
             self.profile.nickname,
         )
 
-    def test_manage_requires_authentication(self) -> None:
+    def test_manage_requires_authentication(
+        self,
+    ) -> None:
         response = self.client.get(
             self.url,
         )
@@ -240,7 +283,9 @@ class ManageUserViewTests(BaseUserAPITestCase):
             status.HTTP_401_UNAUTHORIZED,
         )
 
-    def test_update_profile(self) -> None:
+    def test_update_profile(
+        self,
+    ) -> None:
         self.authenticate()
 
         response = self.client.patch(
@@ -263,12 +308,15 @@ class ManageUserViewTests(BaseUserAPITestCase):
             self.profile.nickname,
             "updated_anna",
         )
+
         self.assertEqual(
             self.profile.bio,
             "Updated bio",
         )
 
-    def test_update_email(self) -> None:
+    def test_update_email(
+        self,
+    ) -> None:
         self.authenticate()
 
         response = self.client.patch(
@@ -291,7 +339,9 @@ class ManageUserViewTests(BaseUserAPITestCase):
             "updated@example.com",
         )
 
-    def test_update_rejects_existing_email(self) -> None:
+    def test_update_rejects_existing_email(
+        self,
+    ) -> None:
         self.authenticate()
 
         response = self.client.patch(
@@ -307,7 +357,27 @@ class ManageUserViewTests(BaseUserAPITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
-    def test_update_password_hashes_password(self) -> None:
+    def test_update_allows_current_email(
+        self,
+    ) -> None:
+        self.authenticate()
+
+        response = self.client.patch(
+            self.url,
+            {
+                "email": self.user.email,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+    def test_update_password_hashes_password(
+        self,
+    ) -> None:
         self.authenticate()
 
         new_password = "NewPassword456!"
@@ -327,8 +397,44 @@ class ManageUserViewTests(BaseUserAPITestCase):
 
         self.user.refresh_from_db()
 
+        self.assertNotEqual(
+            self.user.password,
+            new_password,
+        )
+
         self.assertTrue(
             self.user.check_password(
                 new_password,
             )
+        )
+
+    def test_delete_profile_deletes_user_account(
+        self,
+    ) -> None:
+        self.authenticate()
+
+        user_pk = self.user.pk
+        profile_pk = self.profile.pk
+
+        response = self.client.delete(
+            self.url,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+
+        self.assertFalse(
+            get_user_model()
+            .objects.filter(
+                pk=user_pk,
+            )
+            .exists()
+        )
+
+        self.assertFalse(
+            Profile.objects.filter(
+                pk=profile_pk,
+            ).exists()
         )

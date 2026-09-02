@@ -9,6 +9,8 @@ from user.tests.base import BaseUserAPITestCase
 
 class FollowProfileViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
+        super().setUp()
+
         self.url = reverse(
             "user:profile-follow",
             args=[self.second_profile.pk],
@@ -44,6 +46,7 @@ class FollowProfileViewTests(BaseUserAPITestCase):
             response.data["follower"],
             "anna",
         )
+
         self.assertEqual(
             response.data["following"],
             "bob",
@@ -128,6 +131,8 @@ class FollowProfileViewTests(BaseUserAPITestCase):
 
 class UnfollowProfileViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
+        super().setUp()
+
         self.url = reverse(
             "user:profile-unfollow",
             args=[self.second_profile.pk],
@@ -216,6 +221,8 @@ class UnfollowProfileViewTests(BaseUserAPITestCase):
 
 class FollowingProfilesViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
+        super().setUp()
+
         self.url = reverse(
             "user:profile-following",
             args=[self.profile.pk],
@@ -226,6 +233,7 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
             follower=self.user,
             following=self.second_user,
         )
+
         Follow.objects.create(
             follower=self.user,
             following=self.third_user,
@@ -242,10 +250,7 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
             status.HTTP_200_OK,
         )
 
-        nicknames = {
-            item["nickname"]
-            for item in response.data
-        }
+        nicknames = {item["nickname"] for item in response.data["results"]}
 
         self.assertEqual(
             nicknames,
@@ -268,7 +273,12 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
         )
 
         self.assertEqual(
-            response.data,
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(
+            response.data["results"],
             [],
         )
 
@@ -283,9 +293,15 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
-            response.data,
+            response.data["results"],
             [],
+        )
+
+        self.assertEqual(
+            response.data["count"],
+            0,
         )
 
     def test_can_view_another_profiles_following(self) -> None:
@@ -309,8 +325,9 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
-            response.data[0]["nickname"],
+            response.data["results"][0]["nickname"],
             "kate",
         )
 
@@ -327,6 +344,8 @@ class FollowingProfilesViewTests(BaseUserAPITestCase):
 
 class FollowersProfilesViewTests(BaseUserAPITestCase):
     def setUp(self) -> None:
+        super().setUp()
+
         self.url = reverse(
             "user:profile-followers",
             args=[self.profile.pk],
@@ -337,6 +356,7 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
             follower=self.second_user,
             following=self.user,
         )
+
         Follow.objects.create(
             follower=self.third_user,
             following=self.user,
@@ -353,10 +373,7 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
             status.HTTP_200_OK,
         )
 
-        nicknames = {
-            item["nickname"]
-            for item in response.data
-        }
+        nicknames = {item["nickname"] for item in response.data["results"]}
 
         self.assertEqual(
             nicknames,
@@ -379,7 +396,12 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
         )
 
         self.assertEqual(
-            response.data,
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(
+            response.data["results"],
             [],
         )
 
@@ -394,9 +416,15 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
-            response.data,
+            response.data["results"],
             [],
+        )
+
+        self.assertEqual(
+            response.data["count"],
+            0,
         )
 
     def test_can_view_another_profiles_followers(self) -> None:
@@ -420,8 +448,9 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
-            response.data[0]["nickname"],
+            response.data["results"][0]["nickname"],
             "kate",
         )
 
@@ -438,13 +467,11 @@ class FollowersProfilesViewTests(BaseUserAPITestCase):
 
 class FollowDirectionTests(BaseUserAPITestCase):
     def test_followers_and_following_have_correct_direction(self) -> None:
-        # Anna follows Bob.
         Follow.objects.create(
             follower=self.user,
             following=self.second_user,
         )
 
-        # Kate follows Anna.
         Follow.objects.create(
             follower=self.third_user,
             following=self.user,
@@ -470,17 +497,18 @@ class FollowDirectionTests(BaseUserAPITestCase):
             following_response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(
             followers_response.status_code,
             status.HTTP_200_OK,
         )
 
         self.assertEqual(
-            following_response.data[0]["nickname"],
+            following_response.data["results"][0]["nickname"],
             "bob",
         )
 
         self.assertEqual(
-            followers_response.data[0]["nickname"],
+            followers_response.data["results"][0]["nickname"],
             "kate",
         )
