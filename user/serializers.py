@@ -11,6 +11,7 @@ class CustomAuthTokenSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
+        style={"input_type": "password"}
     )
 
     def validate(self, attrs):
@@ -40,6 +41,7 @@ class ProfileCreateSerializer(serializers.ModelSerializer):
         source="user.password",
         write_only=True,
         trim_whitespace=False,
+        style={"input_type": "password"}
     )
     first_name = serializers.CharField(
         source="user.first_name",
@@ -98,6 +100,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         trim_whitespace=False,
+        style={"input_type": "password"}
     )
     first_name = serializers.CharField(
         source="user.first_name",
