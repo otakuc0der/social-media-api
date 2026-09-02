@@ -10,9 +10,10 @@ dependencies = [
     "django-filter>=26.1",
     "djangorestframework>=3.18.0",
     "drf-spectacular>=0.30.0",
+    "flower>=2.1.0",
     "pillow>=12.3.0",
     "psycopg[binary]>=3.3.4",
-    "python-dotenv>=1.2.3",
+    "python-decouple>=3.8",
 ]
 
 [dependency-groups]

@@ -1,6 +1,9 @@
+from datetime import datetime
+
 from rest_framework import serializers
 
 from social.models import Comment, Hashtag, Post
+from social.utils.validators import validate_scheduled_at
 
 
 class HashtagSerializer(serializers.ModelSerializer):
@@ -18,6 +21,9 @@ class PostSerializer(serializers.ModelSerializer):
         allow_null=True,
         allow_empty_file=False,
     )
+    scheduled_at = serializers.DateTimeField(
+        required=False
+    )
 
     class Meta:
         model = Post
@@ -26,7 +32,23 @@ class PostSerializer(serializers.ModelSerializer):
             "content",
             "image",
             "hashtags",
+            "scheduled_at"
         ]
+
+    def validate_scheduled_at(
+        self,
+        value: datetime,
+    ) -> datetime:
+        if self.instance is not None:
+            raise serializers.ValidationError(
+                "The scheduled publication time cannot "
+                "be changed after post creation."
+            )
+
+        return validate_scheduled_at(
+            scheduled_at=value,
+            error_factory=serializers.ValidationError,
+        )
 
 
 class PostListSerializer(PostSerializer):
