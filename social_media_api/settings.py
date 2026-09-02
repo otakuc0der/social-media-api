@@ -1,16 +1,28 @@
-import os
 from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv()
+from decouple import config
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = config("SECRET_KEY")
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+DEBUG = config(
+    "DEBUG",
+    default=False,
+    cast=bool,
+)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1",
+    cast=lambda value: [
+        host.strip()
+        for host in value.split(",")
+    ],
+)
+
+INTERNAL_IPS = []
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -21,10 +33,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "social",
-    "user",
     "rest_framework.authtoken",
     "django_filters",
+    "social",
+    "user",
 ]
 
 
@@ -43,8 +55,13 @@ if DEBUG:
     INSTALLED_APPS += [
         "debug_toolbar",
     ]
-    MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
-    INTERNAL_IPS = [
+
+    MIDDLEWARE.insert(
+        1,
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+    )
+
+    INTERNAL_IPS += [
         "127.0.0.1",
     ]
 
@@ -71,8 +88,16 @@ WSGI_APPLICATION = "social_media_api.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("POSTGRES_DB"),
+        "USER": config("POSTGRES_USER"),
+        "PASSWORD": config("POSTGRES_PASSWORD"),
+        "HOST": config("POSTGRES_HOST"),
+        "PORT": config(
+            "POSTGRES_PORT",
+            default=5432,
+            cast=int,
+        ),
     }
 }
 
@@ -93,13 +118,27 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Europe/Kyiv"
 
 USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = Path(
+    config(
+        "STATIC_ROOT",
+        default=str(BASE_DIR / "staticfiles"),
+    )
+)
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = Path(
+    config(
+        "MEDIA_ROOT",
+        default=str(BASE_DIR / "media"),
+    )
+)
 
 MAILERS = {
     "default": {
@@ -143,3 +182,23 @@ SPECTACULAR_SETTINGS = {
     },
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+CELERY_BROKER_URL = config("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND")
+
+CELERY_TIMEZONE = config(
+    "CELERY_TIMEZONE",
+    default="Europe/Kyiv",
+)
+
+CELERY_TASK_TRACK_STARTED = config(
+    "CELERY_TASK_TRACK_STARTED",
+    default=True,
+    cast=bool,
+)
+
+CELERY_TASK_TIME_LIMIT = config(
+    "CELERY_TASK_TIME_LIMIT",
+    default=1800,
+    cast=int,
+)

@@ -1,11 +1,16 @@
 from collections.abc import Callable
+from datetime import datetime
 from uuid import UUID
+
+from django.utils import timezone
 
 
 ValidationErrorFactory = Callable[
     [dict[str, list[str]]],
     Exception,
 ]
+
+FieldValidationErrorFactory = Callable[[list[str]], Exception]
 
 
 def validate_like_creation(
@@ -47,3 +52,15 @@ def validate_like_removal(
                 ],
             }
         )
+
+
+def validate_scheduled_at(
+    scheduled_at: datetime,
+    error_factory: FieldValidationErrorFactory,
+) -> datetime:
+    if scheduled_at <= timezone.now():
+        raise error_factory(
+            ["The scheduled publication time must be in the future."]
+        )
+
+    return scheduled_at

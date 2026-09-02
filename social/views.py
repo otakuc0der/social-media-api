@@ -1,10 +1,13 @@
+from django.db import transaction
 from django.db.models import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -47,12 +50,12 @@ from social.serializers import (
     PostListSerializer,
     PostSerializer,
 )
+from social.tasks import publish_post
 from social.utils.helpers import get_available_posts_for_user
 from social.utils.validators import (
     validate_like_creation,
     validate_like_removal,
 )
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 
 @extend_schema_view(
@@ -131,9 +134,27 @@ class PostViewSet(viewsets.ModelViewSet):
         self,
         serializer: BaseSerializer,
     ) -> None:
-        serializer.save(
-            author=self.request.user,
-        )
+        scheduled_at = serializer.validated_data.get("scheduled_at")
+
+        if not scheduled_at:
+            serializer.save(
+                author=self.request.user,
+                status=Post.Status.PUBLISHED,
+                published_at=timezone.now(),
+            )
+        else:
+            post = serializer.save(
+                author=self.request.user,
+                status=Post.Status.SCHEDULED,
+                published_at=None
+            )
+
+            transaction.on_commit(
+                lambda: publish_post.apply_async(
+                    args=[str(post.pk)],
+                    eta=scheduled_at,
+                )
+            )
 
     @LIKE_POST_SCHEMA
     @action(
@@ -213,8 +234,10 @@ class PostViewSet(viewsets.ModelViewSet):
         self,
         request: Request,
     ) -> Response:
-        liked_posts = self.get_queryset().filter(
-            likes__user=request.user,
+        liked_posts = self.filter_queryset(
+            self.get_queryset().filter(
+                likes__user=request.user,
+            )
         )
 
         page = self.paginate_queryset(
