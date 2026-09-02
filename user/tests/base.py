@@ -5,49 +5,60 @@ from user.models import Profile
 
 
 class BaseUserAPITestCase(APITestCase):
-    PASSWORD = "TestPassword123!"
+    PASSWORD = "Password123!"
 
-    @classmethod
-    def setUpTestData(cls) -> None:
-        user_model = get_user_model()
-
-        cls.user = user_model.objects.create_user(
+    def setUp(self) -> None:
+        self.user = self.create_user(
             email="anna@example.com",
-            password=cls.PASSWORD,
             first_name="Anna",
             last_name="Smith",
-        )
-        cls.profile = Profile.objects.create(
-            user=cls.user,
             nickname="anna",
-            bio="Anna bio",
         )
 
-        cls.second_user = user_model.objects.create_user(
+        self.second_user = self.create_user(
             email="bob@example.com",
-            password=cls.PASSWORD,
             first_name="Bob",
             last_name="Brown",
-        )
-        cls.second_profile = Profile.objects.create(
-            user=cls.second_user,
             nickname="bob",
-            bio="Bob bio",
         )
 
-        cls.third_user = user_model.objects.create_user(
+        self.third_user = self.create_user(
             email="kate@example.com",
-            password=cls.PASSWORD,
             first_name="Kate",
-            last_name="White",
-        )
-        cls.third_profile = Profile.objects.create(
-            user=cls.third_user,
+            last_name="Wilson",
             nickname="kate",
-            bio="Kate bio",
         )
 
-    def authenticate(self, user=None) -> None:
+        self.profile = self.user.profile
+        self.second_profile = self.second_user.profile
+        self.third_profile = self.third_user.profile
+
+    def create_user(
+        self,
+        *,
+        email: str,
+        first_name: str = "",
+        last_name: str = "",
+        nickname: str,
+    ):
+        user = get_user_model().objects.create_user(
+            email=email,
+            password=self.PASSWORD,
+            first_name=first_name,
+            last_name=last_name,
+        )
+
+        Profile.objects.create(
+            user=user,
+            nickname=nickname,
+        )
+
+        return user
+
+    def authenticate(
+        self,
+        user=None,
+    ) -> None:
         self.client.force_authenticate(
             user=user or self.user,
         )
