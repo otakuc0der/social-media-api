@@ -294,3 +294,5 @@ pyrightconfig.json
 
 .DS_Store
 Thumbs.db
+
+fixtures/
